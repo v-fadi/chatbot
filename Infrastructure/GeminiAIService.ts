@@ -5,7 +5,7 @@ export class GeminiAIService {
 
     async ask(prompt :string, personality: string) : Promise<string> {
         try {
-            const response = await fetch ("https://vercel.com/v-fadis-projects/chatbot/BHdogc6WaKQVitjiPGzUQKreYb2A", {
+            const response = await fetch ("chatbot-oh2voqfan-v-fadis-projects.vercel.app", {
                 method: "POST",
                 headers: { "Content-Type": "application/json"},
                 body: JSON.stringify({ prompt, personality, }),
