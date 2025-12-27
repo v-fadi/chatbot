@@ -12,13 +12,13 @@ import {
 
 } from 'react-native';
 
-import { ChatMessage, ChatProps } from '../../Domain/Chat';
-import { GeminiAIService } from '../../Infrastructure/GeminiAIService';
-import { getGreeting } from '../../Application/usecases/getGreeting';
-import { getChatErrorMessage } from '../../Application/usecases/getChatErrorMessage';
-import { sendMessageUseCase } from '../../Application/usecases/sendMessage';
-import { getNetworkErrorMessage } from '../../Application/usecases/getNetworkErrorMessage';
-import { chatStyles as styles } from './styles/ChatScreen.styles';
+import { ChatMessage, ChatProps } from '../../Domain/Chat.js';
+import { GeminiAIService } from '../../Infrastructure/GeminiAIService.js';
+import { getGreeting } from '../../Application/usecases/getGreeting.js';
+import { getChatErrorMessage } from '../../Application/usecases/getChatErrorMessage.js';
+import { sendMessageUseCase } from '../../Application/usecases/sendMessage.js';
+import { getNetworkErrorMessage } from '../../Application/usecases/getNetworkErrorMessage.js';
+import { chatStyles as styles } from './styles/ChatScreen.styles.js';
 
 
 export function ChatScreen({ personality }: ChatProps) {

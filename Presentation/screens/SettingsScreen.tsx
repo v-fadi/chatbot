@@ -1,6 +1,6 @@
 import { Text, Button, TextInput, View } from "react-native";
-import { SettingsProps } from "../../Domain/Chat";
-import { settingsStyles as styles } from "./styles/SettingsScreen.styles";
+import { SettingsProps } from "../../Domain/Chat.js";
+import { settingsStyles as styles } from "./styles/SettingsScreen.styles.js";
 
 export function SettingsScreen({ setPersonality }: SettingsProps) {
   return (

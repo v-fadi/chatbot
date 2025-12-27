@@ -1,4 +1,4 @@
-import { GeminiAIService } from "../../Infrastructure/GeminiAIService";
+import { GeminiAIService } from "../../Infrastructure/GeminiAIService.js";
 
 export const getNetworkErrorMessage = async (
     ai: GeminiAIService,

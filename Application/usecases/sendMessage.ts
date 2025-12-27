@@ -1,5 +1,5 @@
-import { GeminiAIService } from "../../Infrastructure/GeminiAIService"
-import { ChatMessage } from "../../Domain/Chat"
+import { GeminiAIService } from "../../Infrastructure/GeminiAIService.js"
+import { ChatMessage } from "../../Domain/Chat.js"
 
 export const sendMessageUseCase = async (
     ai: GeminiAIService,
