@@ -9,17 +9,29 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-
+  Modal,
+  Pressable,
+  Image,
+  Linking
 } from 'react-native';
+// Add EncodingType to your imports
 
-import { ChatMessage, ChatProps } from '../../Domain/Chat.js';
-import { GeminiAIService } from '../../Infrastructure/GeminiAIService.js';
-import { getGreeting } from '../../Application/usecases/getGreeting.js';
-import { getChatErrorMessage } from '../../Application/usecases/getChatErrorMessage.js';
-import { sendMessageUseCase } from '../../Application/usecases/sendMessage.js';
-import { getNetworkErrorMessage } from '../../Application/usecases/getNetworkErrorMessage.js';
-import { chatStyles as styles } from './styles/ChatScreen.styles.js';
 
+// Make sure you install this: npx expo install expo-file-system
+import * as FileSystem from 'expo-file-system';
+
+import * as ImagePicker from 'expo-image-picker';
+
+
+import * as DocumentPicker from 'expo-document-picker';
+
+import { ChatMessage, ChatProps } from '../../Domain/Chat';
+import { GeminiAIService } from '../../Infrastructure/GeminiAIService';
+import { getGreeting } from '../../Application/usecases/getGreeting';
+import { getChatErrorMessage } from '../../Application/usecases/getChatErrorMessage';
+import { sendMessageUseCase } from '../../Application/usecases/sendMessage';
+import { getNetworkErrorMessage } from '../../Application/usecases/getNetworkErrorMessage';
+import { chatStyles as styles } from './styles/ChatScreen.styles';
 
 export function ChatScreen({ personality }: ChatProps) {
   const [message, setMessage] = useState('');
@@ -27,19 +39,19 @@ export function ChatScreen({ personality }: ChatProps) {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [networkErrorResponse, setNetworkErrorResponse] = useState<string | null>(null);
   const [chatErrorResponse, setChatErrorResponse] = useState<string | null>(null);
+  const [attachMenuVisible, setAttachMenuVisible] = useState(false);
 
   const flatListRef = useRef<FlatList<ChatMessage> | null>(null);
+  const ai = useRef(new GeminiAIService()).current;
 
-  const ai = new GeminiAIService();
-
+  // --- Initial Setup Effects ---
   useEffect(() => {
     const run = async () => {
       const greeting = await getGreeting(ai, personality);
       setChatHistory([{ id: Date.now().toString(), text: greeting, sender: 'system' }]);
     };
     run();
-  }, []);
-
+  }, [personality]);
 
   useEffect(() => {
     const run = async () => {
@@ -49,7 +61,6 @@ export function ChatScreen({ personality }: ChatProps) {
     run();
   }, [personality]);
 
-
   useEffect(() => {
     const run = async () => {
       const msg = await getChatErrorMessage(ai, personality);
@@ -58,17 +69,149 @@ export function ChatScreen({ personality }: ChatProps) {
     run();
   }, [personality]);
 
+  // --- File Handling Functions ---
 
-  const sendMessage = async () => {
-    const systemMessage = await sendMessageUseCase(ai, message, personality);
-    setChatHistory((prev) => [...prev, systemMessage]);
+  const pickImage = async () => {
+    setAttachMenuVisible(false);
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      alert("Permission required to access photos");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      // Quality 0.5 is CRITICAL to keep base64 string size under Vercel limits
+      quality: 0.5, 
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      
+      try {
+        // Convert image to Base64
+        const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+            encoding: 'base64',
+        });
+
+        const imgMsg: ChatMessage = {
+            id: Date.now().toString(),
+            text: `Image: ${asset.uri}`,
+            sender: "user",
+            // We append the raw data here so we can send it to the API
+            image_data: {
+                base64: base64,
+                mimeType: asset.mimeType ?? 'image/jpeg'
+            }
+        };
+
+        setChatHistory(prev => [...prev, imgMsg]);
+        
+        // Immediately trigger the send
+        await handleSendMessage(imgMsg);
+
+      } catch (e) {
+        console.error("Error processing image:", e);
+        alert("Failed to process image");
+      }
+    }
   };
 
-  const renderItem = ({ item } : { item: ChatMessage }) => (
+  const pickDocument = async () => {
+    setAttachMenuVisible(false);
+    const result = await DocumentPicker.getDocumentAsync({});
+    const resAny = result as any;
+    if (resAny && resAny.type === 'success') {
+      const name = resAny.name as string | undefined;
+      const uri = resAny.uri as string | undefined;
+      const docMsg: ChatMessage = {
+        id: Date.now().toString(),
+        text: `Document: ${name ?? 'file'} ${uri ?? ''}`,
+        sender: 'user',
+      };
+      setChatHistory((prev) => [...prev, docMsg]);
+      // Note: Document analysis requires a different API flow (File API), 
+      // so we just treat this as text context for now or implement later.
+      await handleSendMessage(docMsg);
+    }
+  };
+
+  // --- Sending Logic ---
+
+  // Unified send handler for both Text input and Image inputs
+  const handleSendMessage = async (customMessage?: ChatMessage) => {
+    const textInput = message.trim();
+    
+    // Determine what we are sending: either the custom msg (image) or text input
+    const messageToSend = customMessage || (textInput ? { 
+        id: Date.now().toString(), 
+        text: textInput, 
+        sender: 'user' 
+    } as ChatMessage : undefined);
+
+    if (!messageToSend) return;
+
+    // If it was text input, clear the box and add to history
+    if (!customMessage) {
+        setChatHistory(prev => [...prev, messageToSend]);
+        setMessage('');
+    }
+
+    setIsTyping(true);
+
+    try {
+        // Direct call to AI Service to ensure image_data is passed correctly.
+        // NOTE: Ensure your GeminiAIService.ask() method accepts the 3rd argument (image_data)
+        const responseText = await ai.ask(
+            messageToSend.text, 
+            personality, 
+            messageToSend.image_data // This is undefined for normal text messages
+        );
+
+        const systemMsg: ChatMessage = {
+            id: Date.now().toString(),
+            text: responseText,
+            sender: 'system'
+        };
+        setChatHistory(prev => [...prev, systemMsg]);
+
+    } catch (error) {
+        console.error("Send error:", error);
+        setChatHistory(prev => [...prev, {
+            id: Date.now().toString(),
+            text: chatErrorResponse || "I'm having trouble connecting right now.",
+            sender: 'system'
+        }]);
+    } finally {
+        setIsTyping(false);
+    }
+  };
+
+  // --- Rendering ---
+
+  const renderItem = ({ item }: { item: ChatMessage }) => (
     <View style={[styles.messageBubble, item.sender === 'user' ? styles.userBubble : styles.systemBubble]}>
-      <Text style={[styles.messageText, item.sender === 'user' ? styles.userText : styles.systemText]}>
-        {item.text}
-      </Text>
+      {typeof item.text === 'string' && item.text.startsWith('Image: ') ? (
+        <View>
+            <Image 
+                source={{ uri: item.text.replace('Image: ', '') }} 
+                style={styles.chatImage} 
+                resizeMode="cover" 
+            />
+        </View>
+      ) : typeof item.text === 'string' && item.text.startsWith('Document: ') ? (
+        <Pressable onPress={() => {
+            const match = item.text.match(/(https?:\/\/\S+|file:\/\/\S+|content:\/\/\S+)/);
+            if(match) Linking.openURL(match[0]);
+        }}>
+          <Text style={styles.documentLinkText}>📄 {item.text.replace('Document: ', '').split('file:')[0]}</Text>
+        </Pressable>
+      ) : (
+        <Text style={[styles.messageText, item.sender === 'user' ? styles.userText : styles.systemText]}>
+          {item.text}
+        </Text>
+      )}
     </View>
   );
 
@@ -87,7 +230,25 @@ export function ChatScreen({ personality }: ChatProps) {
           contentContainerStyle={styles.listContent}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         />
+        
+        <Modal visible={attachMenuVisible} transparent animationType="slide">
+          <View style={styles.modalOverlay} pointerEvents="box-none">
+            <View style={styles.modalContent}>
+              <Pressable onPress={pickImage} style={styles.modalButton}>
+                <Text style={styles.modalButtonText}>Attach Photo</Text>
+              </Pressable>
+              <Pressable onPress={pickDocument} style={styles.modalButton}>
+                <Text style={styles.modalButtonText}>Attach Document</Text>
+              </Pressable>
+              <Pressable onPress={() => setAttachMenuVisible(false)} style={styles.modalCancel}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+
         {isTyping && <Text style={{ marginLeft: 20, marginBottom: 5, color: '#666' }}>Thinking...</Text>}
+        
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
@@ -95,9 +256,12 @@ export function ChatScreen({ personality }: ChatProps) {
             onChangeText={setMessage}
             placeholder="I'm listening..."
             placeholderTextColor="#888"
-            onSubmitEditing={sendMessage}
+            onSubmitEditing={() => handleSendMessage()}
           />
-          <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
+          <TouchableOpacity onPress={() => setAttachMenuVisible(true)} style={styles.attachButton}>
+            <Text style={styles.attachButtonText}>+</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => handleSendMessage()} style={styles.sendButton}>
             <Text style={styles.sendButtonText}>Send</Text>
           </TouchableOpacity>
         </View>

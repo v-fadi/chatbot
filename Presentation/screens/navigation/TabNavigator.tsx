@@ -1,8 +1,8 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { ChatScreen } from "../ChatScreen.js";
-import { SettingsScreen } from "../SettingsScreen.js";
-import { HomeScreen } from "../HomeScreen.js";
-import { ChatProps, SettingsProps } from "../../../Domain/Chat.js";
+import { ChatScreen } from "../ChatScreen";
+import { SettingsScreen } from "../SettingsScreen";
+import { HomeScreen } from "../HomeScreen";
+import { ChatProps, SettingsProps } from "../../../Domain/Chat";
 
 
 const Tab = createBottomTabNavigator();

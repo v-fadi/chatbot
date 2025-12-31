@@ -10,6 +10,10 @@ export type ChatMessage = {
     id: string;
     text: string;
     sender: 'user' | 'system';
+    image_data?: {
+    base64: string;
+    mimeType: string;
+  };
 };
 
 export type Personality = string;

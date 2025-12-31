@@ -4,13 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
-import { TabNavigator } from './Presentation/screens/navigation/TabNavigator.js';
-
-
-
-
-
-
+import { TabNavigator } from './Presentation/screens/navigation/TabNavigator';
 
 const Tab = createBottomTabNavigator();
 

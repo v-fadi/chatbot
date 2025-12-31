@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "esnext",
-    "module": "node16",
-    "moduleResolution": "node16",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "customConditions": ["react-native"],
     "jsx": "react-native",
     "strict": true,
@@ -10,5 +10,6 @@
     "skipLibCheck": true
   },
   "include": ["."],
+  "exclude": ["node_modules"],
   "extends": "expo/tsconfig.base"
 }

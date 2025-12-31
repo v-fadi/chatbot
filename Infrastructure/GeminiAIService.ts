@@ -1,22 +1,37 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
 export class GeminiAIService {
-    private client = new GoogleGenerativeAI('AIzaSyDwDSmRaao4-qnEctNN9EA5v5fC4RL8c48');
+    private baseUrl: string;
 
-    async ask(prompt :string, personality: string) : Promise<string> {
-        try {
-            const response = await fetch ("chatbot-oh2voqfan-v-fadis-projects.vercel.app", {
-                method: "POST",
-                headers: { "Content-Type": "application/json"},
-                body: JSON.stringify({ prompt, personality, }),
-            });
-
-            const data = await response.json();
-            return data.response || "No response from AI.";
-        } catch (error:any) {
-            return `system error: ${error.message || 'Unknown error occurred.'}`;
-
-    }     
+    constructor(baseUrl?: string) {
+        this.baseUrl = baseUrl || 'https://chatbot-two-ruby.vercel.app';
     }
 
+    // Update signature to accept image data
+    async ask(
+        prompt: string, 
+        personality: string, 
+        imageData?: { base64: string; mimeType: string }
+    ): Promise<string> {
+        try {
+            const resp = await fetch(`${this.baseUrl}/api/ask`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                // Include image data in the JSON body
+                body: JSON.stringify({ 
+                    prompt, 
+                    personality,
+                    image: imageData // Backend needs to handle this
+                }),
+            });
+
+            if (!resp.ok) {
+                const text = await resp.text();
+                throw new Error(`Backend error: ${resp.status} ${text}`);
+            }
+
+            const data = await resp.json();
+            return data.response ?? 'No response from AI.';
+        } catch (err: any) {
+            return `system error: ${err?.message ?? 'Unknown error occurred.'}`;
+        }
+    }
 }
