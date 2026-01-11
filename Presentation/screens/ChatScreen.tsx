@@ -72,68 +72,89 @@ export function ChatScreen({ personality }: ChatProps) {
   // --- File Handling Functions ---
 
   const pickImage = async () => {
-    setAttachMenuVisible(false);
-
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      alert("Permission required to access photos");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      // Quality 0.5 is CRITICAL to keep base64 string size under Vercel limits
-      quality: 0.5, 
-    });
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      const asset = result.assets[0];
+    try {
+      console.log("Requesting media library permissions...");
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log("Permission result:", permission);
       
-      try {
-        // Convert image to Base64
-        const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-            encoding: 'base64',
-        });
-
-        const imgMsg: ChatMessage = {
-            id: Date.now().toString(),
-            text: `Image: ${asset.uri}`,
-            sender: "user",
-            // We append the raw data here so we can send it to the API
-            image_data: {
-                base64: base64,
-                mimeType: asset.mimeType ?? 'image/jpeg'
-            }
-        };
-
-        setChatHistory(prev => [...prev, imgMsg]);
-        
-        // Immediately trigger the send
-        await handleSendMessage(imgMsg);
-
-      } catch (e) {
-        console.error("Error processing image:", e);
-        alert("Failed to process image");
+      if (!permission.granted) {
+        alert("Photo library access required. Please enable in settings.");
+        console.warn("Photo permission denied:", permission);
+        return;
       }
+
+      console.log("Launching image library...");
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.5, 
+      });
+
+      console.log("Image picker result:", result);
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setAttachMenuVisible(false);
+        const asset = result.assets[0];
+        
+        try {
+          // Convert image to Base64
+          const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+              encoding: 'base64',
+          });
+
+          const imgMsg: ChatMessage = {
+              id: Date.now().toString(),
+              text: `Image: ${asset.uri}`,
+              sender: "user",
+              image_data: {
+                  base64: base64,
+                  mimeType: asset.mimeType ?? 'image/jpeg'
+              }
+          };
+
+          setChatHistory(prev => [...prev, imgMsg]);
+          
+          await handleSendMessage(imgMsg);
+
+        } catch (e) {
+          console.error("Error processing image:", e);
+          alert("Failed to process image");
+        }
+      } else {
+        setAttachMenuVisible(false);
+      }
+    } catch (e) {
+      console.error("Error in pickImage:", e);
+      setAttachMenuVisible(false);
+      alert("Failed to open photo library");
     }
   };
 
   const pickDocument = async () => {
-    setAttachMenuVisible(false);
-    const result = await DocumentPicker.getDocumentAsync({});
-    const resAny = result as any;
-    if (resAny && resAny.type === 'success') {
-      const name = resAny.name as string | undefined;
-      const uri = resAny.uri as string | undefined;
-      const docMsg: ChatMessage = {
-        id: Date.now().toString(),
-        text: `Document: ${name ?? 'file'} ${uri ?? ''}`,
-        sender: 'user',
-      };
-      setChatHistory((prev) => [...prev, docMsg]);
-      // Note: Document analysis requires a different API flow (File API), 
-      // so we just treat this as text context for now or implement later.
-      await handleSendMessage(docMsg);
+    try {
+      console.log("Launching document picker...");
+      const result = await DocumentPicker.getDocumentAsync({});
+      console.log("Document picker result:", result);
+      
+      const resAny = result as any;
+      if (resAny && resAny.type === 'success') {
+        setAttachMenuVisible(false);
+        const name = resAny.name as string | undefined;
+        const uri = resAny.uri as string | undefined;
+        const docMsg: ChatMessage = {
+          id: Date.now().toString(),
+          text: `Document: ${name ?? 'file'} ${uri ?? ''}`,
+          sender: 'user',
+        };
+        setChatHistory((prev) => [...prev, docMsg]);
+        // Note: Document analysis requires a different API flow (File API), 
+        // so we just treat this as text context for now or implement later.
+        await handleSendMessage(docMsg);
+      } else {
+        setAttachMenuVisible(false);
+      }
+    } catch (e) {
+      console.error("Error in pickDocument:", e);
+      setAttachMenuVisible(false);
     }
   };
 
