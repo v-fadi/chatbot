@@ -1,7 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Disable default body parser to handle large Base64 payloads manually
 export const config = {
   api: {
     bodyParser: false,
@@ -54,14 +53,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const client = new GoogleGenerativeAI(apiKey);
-        // Use a model that supports vision (Gemini 1.5 Flash or 2.0 Flash)
         const model = client.getGenerativeModel({
             model: 'gemini-2.5-flash', 
             systemInstruction: personality || '',
         });
 
-        // 2. Construct Multimodal Parts
-        // Gemini expects an array of parts: [{ text: "..." }, { inlineData: { ... } }]
         const parts: any[] = [];
 
         if (prompt) {
@@ -77,8 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
 
-        // 3. Generate Content
-        // Note: We pass the 'parts' array, not just the string
+        // Generate Content
         const result = await withRetries(() => model.generateContent(parts), 3, 500);
         console.log('Gemini result success');
 

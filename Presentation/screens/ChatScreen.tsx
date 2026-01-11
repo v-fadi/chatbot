@@ -44,7 +44,6 @@ export function ChatScreen({ personality }: ChatProps) {
   const flatListRef = useRef<FlatList<ChatMessage> | null>(null);
   const ai = useRef(new GeminiAIService()).current;
 
-  // --- Initial Setup Effects ---
   useEffect(() => {
     const run = async () => {
       const greeting = await getGreeting(ai, personality);
@@ -69,8 +68,8 @@ export function ChatScreen({ personality }: ChatProps) {
     run();
   }, [personality]);
 
-  // --- File Handling Functions ---
 
+    // --- Attachment Logic ---
   const pickImage = async () => {
     try {
       console.log("Requesting media library permissions...");
@@ -146,8 +145,7 @@ export function ChatScreen({ personality }: ChatProps) {
           sender: 'user',
         };
         setChatHistory((prev) => [...prev, docMsg]);
-        // Note: Document analysis requires a different API flow (File API), 
-        // so we just treat this as text context for now or implement later.
+
         await handleSendMessage(docMsg);
       } else {
         setAttachMenuVisible(false);
@@ -160,11 +158,9 @@ export function ChatScreen({ personality }: ChatProps) {
 
   // --- Sending Logic ---
 
-  // Unified send handler for both Text input and Image inputs
   const handleSendMessage = async (customMessage?: ChatMessage) => {
     const textInput = message.trim();
     
-    // Determine what we are sending: either the custom msg (image) or text input
     const messageToSend = customMessage || (textInput ? { 
         id: Date.now().toString(), 
         text: textInput, 
@@ -173,7 +169,6 @@ export function ChatScreen({ personality }: ChatProps) {
 
     if (!messageToSend) return;
 
-    // If it was text input, clear the box and add to history
     if (!customMessage) {
         setChatHistory(prev => [...prev, messageToSend]);
         setMessage('');
@@ -182,8 +177,6 @@ export function ChatScreen({ personality }: ChatProps) {
     setIsTyping(true);
 
     try {
-        // Direct call to AI Service to ensure image_data is passed correctly.
-        // NOTE: Ensure your GeminiAIService.ask() method accepts the 3rd argument (image_data)
         const responseText = await ai.ask(
             messageToSend.text, 
             personality, 

@@ -19,7 +19,7 @@ export class GeminiAIService {
                 body: JSON.stringify({ 
                     prompt, 
                     personality,
-                    image: imageData // Backend needs to handle this
+                    image: imageData
                 }),
             });
 
